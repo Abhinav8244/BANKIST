@@ -74,6 +74,31 @@ const currencies = new Map([
 const movements = [200, 450, -400, 3000, -650, -130, 70, 1300];
 
 /////////////////////////////////////////////////
+
+let currentAccount;
+btnLogin.addEventListener('click', function (e) {
+  e.preventDefault();
+  currentAccount = accounts.find(
+    acc => acc.username === inputLoginUsername.value
+  );
+
+  if (currentAccount?.pin === Number(inputLoginPin.value)) {
+    containerApp.style.opacity = 100;
+    labelWelcome.textContent = `Welcome Back, ${
+      currentAccount.owner.split(' ')[0]
+    }`;
+    updateUI();
+    inputLoginUsername.value = inputLoginPin.value = '';
+    inputLoginPin.blur();
+  }
+});
+
+const updateUI = function () {
+  displayMovements(currentAccount.movements);
+  calcDisplayBalance(currentAccount);
+  displaySummary(currentAccount);
+};
+
 const displayMovements = function (movements) {
   containerMovements.innerHTML = '';
   movements.forEach(function (mov, i) {
@@ -89,14 +114,10 @@ const displayMovements = function (movements) {
   });
 };
 
-displayMovements(account1.movements);
-
-const calcDisplayBalance = function (mov) {
-  const balance = mov.reduce((acc, cur) => acc + cur, 0);
-  labelBalance.textContent = `₹${balance}`;
+const calcDisplayBalance = function (acc) {
+  acc.balance = acc.movements.reduce((acc, cur) => acc + cur, 0);
+  labelBalance.textContent = `₹${acc.balance}`;
 };
-
-calcDisplayBalance(account1.movements);
 
 const username = function (accs) {
   accs.forEach(function (acc) {
@@ -109,22 +130,67 @@ const username = function (accs) {
 };
 
 username(accounts);
-console.log(accounts);
 
-const displaySummary = function (mov) {
-  const income = mov.filter(mov => mov > 0).reduce((acc, cur) => acc + cur, 0);
-  console.log(income);
+const displaySummary = function (acc) {
+  const income = acc.movements
+    .filter(mov => mov > 0)
+    .reduce((acc, cur) => acc + cur, 0);
+
   labelSumIn.textContent = `₹${income}`;
+
+  const out = acc.movements
+    .filter(mov => mov < 0)
+    .reduce((acc, cur) => acc + cur, 0);
+  labelSumOut.textContent = `₹${Math.abs(out)}`;
+
+  const interest = acc.movements
+    .filter(mov => mov > 0)
+    .map(mov => (mov * acc.interestRate) / 100)
+    .filter(mov => mov > 1)
+    .reduce((acc, cur) => acc + cur, 0);
+  labelSumInterest.textContent = `₹${interest}`;
 };
+btnTransfer.addEventListener('click', function (e) {
+  e.preventDefault();
+  const amount = Number(inputTransferAmount.value);
+  const recieverAcc = accounts.find(
+    acc => acc.username === inputTransferTo.value
+  );
+  if (
+    amount > 0 &&
+    recieverAcc.username !== currentAccount.username &&
+    amount <= currentAccount.balance &&
+    recieverAcc
+  ) {
+    currentAccount.movements.push(-amount);
+    recieverAcc.movements.push(amount);
+    inputTransferAmount.value = inputTransferTo.value = '';
+    updateUI();
+  }
+});
 
-displaySummary(account1.movements);
+btnClose.addEventListener('click', function (e) {
+  e.preventDefault();
+  if (
+    inputCloseUsername.value === currentAccount.username &&
+    Number(inputClosePin.value) === currentAccount.pin
+  ) {
+    const index = accounts.findIndex(
+      acc => acc.username === currentAccount.username
+    );
+    accounts.splice(index, 1);
+    inputCloseUsername.value = inputClosePin.value = '';
+    containerApp.style.opacity = 0;
+    labelWelcome.textContent = `Log in to get started`;
+  }
+});
+btnLoan.addEventListener('click', function (e) {
+  e.preventDefault();
+  const loan = Number(inputLoanAmount.value);
+  if (loan > 0 && currentAccount.movements.some(mov => mov >= loan * 0.1)) {
+    currentAccount.movements.push(loan);
+    updateUI();
+    inputLoanAmount.value = '';
+  }
+});
 
-const out = movements.filter(mov => mov < 0).reduce((acc, cur) => acc + cur, 0);
-labelSumOut.textContent = `₹${Math.abs(out)}`;
-
-const interest = movements
-  .filter(mov => mov > 0)
-  .map(mov => (mov * 1.2) / 100)
-  .filter(mov => mov > 1)
-  .reduce((acc, cur) => acc + cur, 0);
-labelSumInterest.textContent = `₹${interest}`;
